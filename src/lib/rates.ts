@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { fetchUsdInr, type UsdRates } from "./fx";
+import { fetchUsdInr, type RatePoint, type UsdRates } from "./fx";
 
 function today(): Date {
   const d = new Date();
@@ -29,4 +29,18 @@ export async function getRates(onOrBefore: Date = new Date()): Promise<UsdRates 
   }
   if (!row) throw new Error("No exchange rate available yet");
   return { USD: 1, INR: Number(row.rate), asOf: row.date };
+}
+
+/** All stored USD→INR rates, oldest first, for converting many dated rows at once. */
+export async function getRateHistory(): Promise<RatePoint[]> {
+  const rows = await db.exchangeRate.findMany({
+    where: { base: "USD", quote: "INR" },
+    orderBy: { date: "asc" },
+    select: { date: true, rate: true },
+  });
+  if (rows.length === 0) {
+    const r = await refreshRates().catch(() => null);
+    return r ? [{ date: r.date, inr: Number(r.rate) }] : [];
+  }
+  return rows.map((r) => ({ date: r.date, inr: Number(r.rate) }));
 }

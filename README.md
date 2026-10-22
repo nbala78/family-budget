@@ -12,7 +12,9 @@ It installs on iPhone and Android as a home-screen app (PWA).
 - Encryption: the database is encrypted at rest by the host (Neon), connections use TLS, and sensitive fields
   (account details, notes) are also encrypted in the app with AES-256-GCM (`src/lib/crypto.ts`).
 
-Coming next: expense entry and CSV import, monthly budgets, reports, and the retirement planner (401k/IRA/Roth/HSA and EPF/PPF/NPS).
+- Expenses: manual entry and CSV import (US single Amount column or Indian Withdrawal/Deposit columns), with categories.
+- Budgets per category per month in USD or INR (admins), and reports in USD (12-month trend, by category, by member).
+- Accounts and net worth, plus a retirement planner covering 401(k), IRA, Roth IRA, HSA, EPF, PPF and NPS.
 
 ## Run locally
 

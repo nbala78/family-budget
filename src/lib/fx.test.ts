@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { convert, fetchUsdInr, toUsd } from "./fx";
+import { convert, fetchUsdInr, ratesOn, toUsd } from "./fx";
 
 const rates = { USD: 1, INR: 83.25 };
 
@@ -27,4 +27,14 @@ describe("fetchUsdInr", () => {
     const f = vi.fn().mockRejectedValue(new Error("offline"));
     await expect(fetchUsdInr(f)).rejects.toThrow(/All FX sources failed/);
   });
+});
+
+describe("ratesOn", () => {
+  const h = [
+    { date: new Date("2026-01-01"), inr: 80 },
+    { date: new Date("2026-02-01"), inr: 82 },
+  ];
+  it("uses the latest rate on or before the date", () => expect(ratesOn(new Date("2026-01-15"), h).INR).toBe(80));
+  it("uses the exact day's rate", () => expect(ratesOn(new Date("2026-02-01"), h).INR).toBe(82));
+  it("falls back to the earliest rate for older dates", () => expect(ratesOn(new Date("2025-06-01"), h).INR).toBe(80));
 });

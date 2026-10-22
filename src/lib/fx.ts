@@ -60,3 +60,16 @@ export async function fetchUsdInr(fetchImpl: typeof fetch = fetch): Promise<{ ra
   }
   throw new Error(`All FX sources failed (${errors.join("; ")})`);
 }
+
+export type RatePoint = { date: Date; inr: number };
+
+/** Picks the latest rate on or before `date` from points sorted ascending; falls back to the earliest. */
+export function ratesOn(date: Date, history: RatePoint[]): UsdRates {
+  if (history.length === 0) throw new Error("No exchange rates loaded");
+  let pick = history[0];
+  for (const p of history) {
+    if (p.date <= date) pick = p;
+    else break;
+  }
+  return { USD: 1, INR: pick.inr };
+}

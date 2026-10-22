@@ -53,17 +53,18 @@ model Household {
 }
 
 model User {
-  id           String             @id @default(cuid())
-  householdId  String
-  household    Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  email        String             @unique
-  name         String
-  passwordHash String
-  role         Role               @default(MEMBER)
-  createdAt    DateTime           @default(now())
-  sessions     Session[]
-  accounts     FinancialAccount[]
-  transactions Transaction[]
+  id             String             @id @default(cuid())
+  householdId    String
+  household      Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  email          String             @unique
+  name           String
+  passwordHash   String
+  role           Role               @default(MEMBER)
+  createdAt      DateTime           @default(now())
+  sessions       Session[]
+  accounts       FinancialAccount[]
+  transactions   Transaction[]
+  retirementPlan RetirementPlan?
 
   @@index([householdId])
 }
@@ -80,19 +81,22 @@ model Session {
 }
 
 model FinancialAccount {
-  id           String        @id @default(cuid())
-  householdId  String
-  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  ownerId      String
-  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name         String
-  kind         AccountKind
-  currency     Currency
-  balance      Decimal       @db.Decimal(14, 2)
+  id                  String        @id @default(cuid())
+  householdId         String
+  household           Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  ownerId             String
+  owner               User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                String
+  kind                AccountKind
+  currency            Currency
+  balance             Decimal       @db.Decimal(14, 2)
+  // Used by the retirement planner: contribution in the account's currency, nominal annual return in percent.
+  monthlyContribution Decimal       @default(0) @db.Decimal(14, 2)
+  expectedReturnPct   Decimal       @default(7) @db.Decimal(5, 2)
   // Encrypted with FIELD_ENCRYPTION_KEY (see src/lib/crypto.ts).
-  detailsEnc   String?
-  createdAt    DateTime      @default(now())
-  transactions Transaction[]
+  detailsEnc          String?
+  createdAt           DateTime      @default(now())
+  transactions        Transaction[]
 
   @@index([householdId, ownerId])
 }
@@ -155,4 +159,23 @@ model ExchangeRate {
   source String
 
   @@unique([date, base, quote])
+}
+
+// Assumptions for one person's retirement projection. Admins' projections cover the whole household.
+model RetirementPlan {
+  id                  String  @id @default(cuid())
+  userId              String  @unique
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentAge          Int
+  retireAge           Int
+  lifeExpectancy      Int
+  // Yearly spending in retirement, in today's dollars.
+  annualSpendingUsd   Decimal @db.Decimal(14, 2)
+  usInflationPct      Decimal @default(2.5) @db.Decimal(5, 2)
+  inInflationPct      Decimal @default(5) @db.Decimal(5, 2)
+  // Tax applied to withdrawals from pre-tax accounts (401k, traditional IRA, NPS).
+  withdrawalTaxPct    Decimal @default(20) @db.Decimal(5, 2)
+  // Other retirement income in today's dollars per year, e.g. Social Security or a pension.
+  otherIncomeUsd      Decimal @default(0) @db.Decimal(14, 2)
+  otherIncomeStartAge Int     @default(67)
 }
