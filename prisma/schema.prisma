@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum Currency {
+  USD
+  INR
+}
+
+enum CategoryKind {
+  EXPENSE
+  INCOME
+}
+
+// US and Indian account types, so the retirement planner can treat them correctly.
+enum AccountKind {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  CASH
+  BROKERAGE
+  RETIREMENT_401K
+  IRA
+  ROTH_IRA
+  HSA
+  EPF
+  PPF
+  NPS
+  FIXED_DEPOSIT
+  OTHER
+}
+
+model Household {
+  id           String             @id @default(cuid())
+  name         String
+  createdAt    DateTime           @default(now())
+  users        User[]
+  accounts     FinancialAccount[]
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+}
+
+model User {
+  id           String             @id @default(cuid())
+  householdId  String
+  household    Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  email        String             @unique
+  name         String
+  passwordHash String
+  role         Role               @default(MEMBER)
+  createdAt    DateTime           @default(now())
+  sessions     Session[]
+  accounts     FinancialAccount[]
+  transactions Transaction[]
+
+  @@index([householdId])
+}
+
+// Only a SHA-256 hash of the session token is stored; the raw token lives in the cookie.
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FinancialAccount {
+  id           String        @id @default(cuid())
+  householdId  String
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  ownerId      String
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  kind         AccountKind
+  currency     Currency
+  balance      Decimal       @db.Decimal(14, 2)
+  // Encrypted with FIELD_ENCRYPTION_KEY (see src/lib/crypto.ts).
+  detailsEnc   String?
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+
+  @@index([householdId, ownerId])
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  householdId  String
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name         String
+  kind         CategoryKind  @default(EXPENSE)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@unique([householdId, name])
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  householdId String
+  household   Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String?
+  account     FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  categoryId  String?
+  category    Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  date        DateTime          @db.Date
+  // Positive = expense/outflow, negative = income/refund. Stored in the original currency.
+  amount      Decimal           @db.Decimal(14, 2)
+  currency    Currency
+  description String
+  notesEnc    String?
+  createdAt   DateTime          @default(now())
+
+  @@index([householdId, date])
+  @@index([userId, date])
+}
+
+model Budget {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  // First day of the month the budget applies to.
+  month       DateTime  @db.Date
+  amount      Decimal   @db.Decimal(14, 2)
+  currency    Currency
+
+  @@unique([categoryId, month])
+}
+
+// Daily rates cached from a free public source; 1 base = rate quote.
+model ExchangeRate {
+  id     String   @id @default(cuid())
+  date   DateTime @db.Date
+  base   Currency
+  quote  Currency
+  rate   Decimal  @db.Decimal(18, 8)
+  source String
+
+  @@unique([date, base, quote])
+}
