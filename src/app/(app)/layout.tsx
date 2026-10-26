@@ -9,12 +9,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   const isAdmin = user.role === "ADMIN";
   const items: NavItem[] = [
-    { href: "/dashboard", label: "Home", icon: "⌂" },
-    { href: "/transactions", label: "Spending", icon: "≡" },
-    ...(isAdmin ? [{ href: "/budgets", label: "Budgets", icon: "◎" }] : []),
-    { href: "/reports", label: "Reports", icon: "▥" },
-    { href: "/accounts", label: "Accounts", icon: "▤" },
-    { href: "/retirement", label: "Retire", icon: "☀" },
+    { href: "/dashboard", label: "Home", icon: "home" },
+    { href: "/transactions", label: "Spending", icon: "list" },
+    ...(isAdmin ? [{ href: "/budgets", label: "Budgets", icon: "pie" as const }] : []),
+    { href: "/reports", label: "Reports", icon: "chart" },
+    { href: "/accounts", label: "Accounts", icon: "bank" },
+    { href: "/retirement", label: "Retire", icon: "sun" },
   ];
   return (
     <div className="pb-20 sm:pb-0">
